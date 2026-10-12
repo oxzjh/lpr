@@ -85,26 +85,3 @@ func (l *LPR) Close() {
 func New(detector IDetector, recognizer IRecognizer) *LPR {
 	return &LPR{detector, recognizer}
 }
-
-// func NewDefault(detectorModel, recognizerModel string, threads int) (*LPR, error) {
-// 	return New(
-// 		detectorModel,
-// 		recognizerModel,
-// 		0.25, 0.5, threads,
-// 	)
-// }
-
-// func New(detectorModel, recognizerModel string, score, iou float32, threads int) (*LPR, error) {
-// 	detector, err := NewDetector(detectorModel, threads, score, iou)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	recognizer, err := NewRecognizer(recognizerModel, threads)
-// 	if err != nil {
-// 		detector.Close()
-// 		return nil, err
-// 	}
-
-// 	return &LPR{detector, recognizer}, nil
-// }
