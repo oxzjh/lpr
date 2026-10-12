@@ -1,24 +1,19 @@
-package lpr
+package ort
 
 import (
 	"errors"
 
 	"github.com/oxzjh/cv"
+	"github.com/oxzjh/lpr"
 	"github.com/oxzjh/ort"
 )
-
-type DetectData struct {
-	Layer     int
-	Landmarks [8]float32
-}
 
 type Detector struct {
 	engine *ort.Ort
 	width  int
 	height int
 	rows   int
-	score  float32
-	iou    float32
+	opts   *options
 }
 
 func (d *Detector) Detect(m *cv.Mat) (boxes []*cv.Box, err error) {
@@ -37,14 +32,14 @@ func (d *Detector) Detect(m *cv.Mat) (boxes []*cv.Box, err error) {
 	}
 	for i := 0; i < d.rows; i++ {
 		offset := i * 15
-		if ss := detection[offset+4]; ss > d.score {
+		if ss := detection[offset+4]; ss > d.opts.score {
 			ox := detection[offset]
 			oy := detection[offset+1]
 			hw := detection[offset+2] * 0.5
 			hh := detection[offset+3] * 0.5
 			s0 := detection[offset+13]
 			s1 := detection[offset+14]
-			data := &DetectData{}
+			data := &lpr.DetectData{}
 			box := &cv.Box{
 				ID:   offset,
 				X0:   ox - hw,
@@ -63,7 +58,7 @@ func (d *Detector) Detect(m *cv.Mat) (boxes []*cv.Box, err error) {
 			boxes = append(boxes, box)
 		}
 	}
-	boxes = cv.NMS(boxes, d.iou)
+	boxes = cv.NMS(boxes, d.opts.iou)
 	if len(boxes) > 0 {
 		ratio := 1 / border.Ratio
 		for _, box := range boxes {
@@ -72,7 +67,7 @@ func (d *Detector) Detect(m *cv.Mat) (boxes []*cv.Box, err error) {
 			box.X1 = (box.X1 - float32(border.Left)) * ratio
 			box.Y1 = (box.Y1 - float32(border.Top)) * ratio
 
-			data := box.Data.(*DetectData)
+			data := box.Data.(*lpr.DetectData)
 			for i := 0; i < 8; i += 2 {
 				data.Landmarks[i] = (detection[box.ID+i+5] - float32(border.Left)) * ratio
 				data.Landmarks[i+1] = (detection[box.ID+i+6] - float32(border.Top)) * ratio
@@ -99,14 +94,29 @@ func (d *Detector) Close() {
 	}
 }
 
-func NewDetector(model string, threads int, score /*= 0.25*/, iou /*= 0.5*/ float32) (*Detector, error) {
-	engine, err := ort.New(model, "lpr_detector", threads)
+func NewDetector(model string, threads int, opts ...Option) (lpr.IDetector, error) {
+	engine, err := ort.New(model, "detector", threads)
 	if err != nil {
 		return nil, err
 	}
+	return newDetector(engine, opts)
+}
+
+func NewDetectorWithBuffer(model []byte, threads int, opts ...Option) (lpr.IDetector, error) {
+	engine, err := ort.NewWithBuffer(model, "detector", threads)
+	if err != nil {
+		return nil, err
+	}
+	return newDetector(engine, opts)
+}
+
+func newDetector(engine *ort.Ort, opts []Option) (lpr.IDetector, error) {
 	if engine.OutputDims[0][2] != 15 {
 		return nil, errors.New("bad LPR model")
 	}
-
-	return &Detector{engine, int(engine.InputDims[0][3]), int(engine.InputDims[0][2]), int(engine.OutputDims[0][1]), score, iou}, nil
+	o := &options{score: 0.25, iou: 0.5}
+	for _, opt := range opts {
+		opt(o)
+	}
+	return &Detector{engine, int(engine.InputDims[0][3]), int(engine.InputDims[0][2]), int(engine.OutputDims[0][1]), o}, nil
 }

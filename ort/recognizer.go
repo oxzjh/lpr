@@ -1,7 +1,8 @@
-package lpr
+package ort
 
 import (
 	"github.com/oxzjh/cv"
+	"github.com/oxzjh/lpr"
 	"github.com/oxzjh/ort"
 	"github.com/oxzjh/vector"
 )
@@ -43,10 +44,22 @@ func (r *Recognizer) Close() {
 	}
 }
 
-func NewRecognizer(model string, threads int) (*Recognizer, error) {
-	engine, err := ort.New(model, "lpr_recognizer", threads)
+func NewRecognizer(model string, threads int) (lpr.IRecognizer, error) {
+	engine, err := ort.New(model, "recognizer", threads)
 	if err != nil {
 		return nil, err
 	}
-	return &Recognizer{engine, int(engine.InputDims[0][3]), int(engine.InputDims[0][2]), int(engine.OutputDims[0][1]), int(engine.OutputDims[0][2])}, nil
+	return newRecognizer(engine), nil
+}
+
+func NewRecognizerWithBuffer(model []byte, threads int) (lpr.IRecognizer, error) {
+	engine, err := ort.NewWithBuffer(model, "recognizer", threads)
+	if err != nil {
+		return nil, err
+	}
+	return newRecognizer(engine), nil
+}
+
+func newRecognizer(engine *ort.Ort) lpr.IRecognizer {
+	return &Recognizer{engine, int(engine.InputDims[0][3]), int(engine.InputDims[0][2]), int(engine.OutputDims[0][1]), int(engine.OutputDims[0][2])}
 }

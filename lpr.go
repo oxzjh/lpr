@@ -6,9 +6,24 @@ import (
 	"github.com/oxzjh/cv"
 )
 
+type IDetector interface {
+	Detect(*cv.Mat) ([]*cv.Box, error)
+	Close()
+}
+
+type IRecognizer interface {
+	Extract(*cv.Mat) ([]int, float32, error)
+	Close()
+}
+
+type DetectData struct {
+	Layer     int
+	Landmarks [8]float32
+}
+
 type LPR struct {
-	detector   *Detector
-	recognizer *Recognizer
+	detector   IDetector
+	recognizer IRecognizer
 }
 
 func (l *LPR) Detect(m *cv.Mat) ([]*License, error) {
@@ -67,25 +82,29 @@ func (l *LPR) Close() {
 	l.recognizer.Close()
 }
 
-func NewDefault(detectorModel, recognizerModel string, threads int) (*LPR, error) {
-	return New(
-		detectorModel,
-		recognizerModel,
-		0.25, 0.5, threads,
-	)
+func New(detector IDetector, recognizer IRecognizer) *LPR {
+	return &LPR{detector, recognizer}
 }
 
-func New(detectorModel, recognizerModel string, score, iou float32, threads int) (*LPR, error) {
-	detector, err := NewDetector(detectorModel, threads, score, iou)
-	if err != nil {
-		return nil, err
-	}
+// func NewDefault(detectorModel, recognizerModel string, threads int) (*LPR, error) {
+// 	return New(
+// 		detectorModel,
+// 		recognizerModel,
+// 		0.25, 0.5, threads,
+// 	)
+// }
 
-	recognizer, err := NewRecognizer(recognizerModel, threads)
-	if err != nil {
-		detector.Close()
-		return nil, err
-	}
+// func New(detectorModel, recognizerModel string, score, iou float32, threads int) (*LPR, error) {
+// 	detector, err := NewDetector(detectorModel, threads, score, iou)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	return &LPR{detector, recognizer}, nil
-}
+// 	recognizer, err := NewRecognizer(recognizerModel, threads)
+// 	if err != nil {
+// 		detector.Close()
+// 		return nil, err
+// 	}
+
+// 	return &LPR{detector, recognizer}, nil
+// }
